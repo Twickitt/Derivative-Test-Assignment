@@ -70,8 +70,7 @@ python -m http.server 8000
 ## Публикация на GitHub Pages
 
 1. Залить содержимое репозитория в ветку `main`.
-2. Settings → Pages → Source: *Deploy from a branch*, ветка `main`, папка `/ (root)`.
-3. Через минуту сайт доступен по адресу `https://<username>.github.io/<repo>/`.
+2. Опубликовал сайт на github pages 
 
 Файл `.nojekyll` отключает обработку Jekyll, которая этому сайту не нужна.
 
