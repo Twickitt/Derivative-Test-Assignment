@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Тренажёр по взятию производных</title>
-<meta name="description" content="Учебный тренажёр по вычислению производных для 10–11 классов и подготовки к ЕГЭ: более 60 000 заданий с решением по шагам и диагностикой типичных ошибок.">
+<meta name="description" content="Учебный тренажёр по вычислению производных для 10–11 классов и подготовки к ЕГЭ: более 85 000 заданий с решением по шагам и диагностикой типичных ошибок.">
 <meta name="theme-color" content="#4f46e5">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="assets/styles.css?v=2">
+<link rel="stylesheet" href="assets/styles.css?v=10">
 </head>
 <body>
 
@@ -46,9 +46,9 @@
         <button class="btn btn-outline btn-lg" type="button" id="startMarathon">Марафон: 10 заданий</button>
       </div>
       <ul class="hero-points">
-        <li><b id="statTypes">24</b><span>типа заданий</span></li>
+        <li><b id="statTypes">28</b><span id="statTypesLabel">типов заданий</span></li>
         <li><b>5</b><span>разделов</span></li>
-        <li><b>60&nbsp;000+</b><span>вариантов заданий</span></li>
+        <li><b>85&nbsp;000+</b><span>вариантов заданий</span></li>
       </ul>
     </div>
 
@@ -70,6 +70,8 @@
       </li>
     </ol>
 
+    <div id="mistakesCard"></div>
+
     <h2 class="section-title">Разделы</h2>
     <p class="section-sub">Разделы расположены по возрастанию сложности. Доступна тренировка как по отдельной теме, так и по всем разделам сразу.</p>
     <div class="cards" id="sectionCards"></div>
@@ -82,6 +84,58 @@
       <div class="stat-row" id="statRow"></div>
       <div id="weakBlock"></div>
       <p class="muted small">Статистика сохраняется в браузере и никуда не передаётся.</p>
+    </section>
+
+    <section class="panel about">
+      <h2>О тренажёре</h2>
+      <p>
+        Тренажёр предназначен для учеников 10–11 классов и для подготовки
+        к профильному ЕГЭ по математике. Задания формируются заново при каждом запуске,
+        поэтому раздел можно проходить столько раз, сколько потребуется.
+      </p>
+
+      <h3>Порядок разделов</h3>
+      <p>
+        Разделы расположены от простого к сложному, и этот же порядок задаёт
+        последовательность изучения. Задание не опирается на правило, которое
+        вводится в более позднем разделе: элементарные функции стоят перед
+        произведением и частным, потому что пример вида
+        <span class="m"><i>x</i>²·sin <i>x</i></span> требует табличной
+        производной синуса.
+      </p>
+      <p>
+        Начинать имеет смысл с первого раздела. Если техника дифференцирования
+        уже освоена, можно открыть нужную тему или запустить тренировку
+        по всем разделам сразу.
+      </p>
+
+      <h3>Метки сложности</h3>
+      <p>Метка показывает сложность задания внутри темы производных.</p>
+      <dl class="levels">
+        <dt>Просто</dt>
+        <dd>правило применяется напрямую</dd>
+        <dt>Средне</dt>
+        <dd>нужно сочетать два правила</dd>
+        <dt>Сложно</dt>
+        <dd>цепное правило, на котором ошибаются чаще всего</dd>
+        <dt>ЕГЭ</dt>
+        <dd>задания экзаменационных форматов: значение производной в точке,
+          касательная, экстремумы, наибольшее и наименьшее значение на отрезке,
+          чтение графика производной</dd>
+      </dl>
+
+      <h3>Справочник</h3>
+      <p>
+        Справочник содержит правила, которые встречаются в заданиях: производные
+        степени, корня, суммы, произведения, частного, сложной функции,
+        тригонометрических, показательной и логарифмической функций.
+        Он открывается с главной страницы и во время решения по кнопке
+        «Показать правило». Обращение к справочнику не влияет на результат,
+        оно только отмечается в статистике.
+      </p>
+      <p class="about-action">
+        <button class="btn btn-outline btn-sm" type="button" data-nav="ref">Открыть справочник</button>
+      </p>
     </section>
   </section>
 
@@ -148,9 +202,9 @@
   <p>Учебный тренажёр по вычислению производных. После первой загрузки работает без подключения к сети, данные сохраняются в браузере.</p>
 </footer>
 
-<script src="assets/js/math-expr.js?v=2"></script>
-<script src="assets/js/tasks.js?v=2"></script>
-<script src="assets/js/progress.js?v=2"></script>
-<script src="assets/js/app.js?v=2"></script>
+<script src="assets/js/math-expr.js?v=10"></script>
+<script src="assets/js/tasks.js?v=10"></script>
+<script src="assets/js/progress.js?v=10"></script>
+<script src="assets/js/app.js?v=10"></script>
 </body>
 </html>

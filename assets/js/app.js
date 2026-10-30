@@ -13,9 +13,11 @@
   function $(id) { return document.getElementById(id); }
 
   var S = {
-    mode: null,            // 'practice' | 'marathon'
+    mode: null,            // 'practice' | 'marathon' | 'mistakes'
     filter: null,          // {section} | {rule} | null
     label: '',
+    queue: [],             // очередь заданий в работе над ошибками
+    total: 0,
     task: null,
     answered: false,
     picked: null,
@@ -40,6 +42,13 @@
 
   function pct(ok, n) { return n ? Math.round(100 * ok / n) : 0; }
 
+  /** Сколько подсказок в среднем приходится на 10 заданий. */
+  function perTen(part, total) {
+    if (!total) return '0';
+    var v = Math.round(part * 100 / total) / 10;
+    return String(v).replace('.', ',');
+  }
+
   function renderHome() {
     var p = PROGRESS.load();
 
@@ -58,6 +67,7 @@
         '</button>';
     });
     $('sectionCards').innerHTML = html;
+    renderMistakesCard();
 
     // прогресс
     var block = $('progressBlock');
@@ -68,7 +78,11 @@
       stat(p.total, 'заданий решено') +
       stat(pct(p.correct, p.total) + '%', 'верных ответов') +
       stat(p.bestStreak, 'лучшая серия') +
-      stat(p.hints, 'обращений к справочнику');
+      // Среднее показываем, когда накопилась осмысленная выборка:
+      // на двух-трёх заданиях оно скачет от 0 до 10.
+      (p.total >= 10
+        ? stat(perTen(p.hints, p.total), 'взято подсказок на 10 заданий')
+        : stat(p.hints, 'взято подсказок'));
 
     var weak = PROGRESS.weakRules(p);
     var out = '';
@@ -106,13 +120,42 @@
     return '<div class="stat"><b>' + value + '</b><span>' + label + '</span></div>';
   }
 
+  function plural(n, one, few, many) {
+    var a = Math.abs(n) % 100, b = a % 10;
+    if (a > 10 && a < 20) return many;
+    if (b > 1 && b < 5) return few;
+    if (b === 1) return one;
+    return many;
+  }
+
+  /** Карточка «Работа над ошибками» — только когда ошибки есть. */
+  function renderMistakesCard() {
+    var n = PROGRESS.mistakeCount();
+    var box = $('mistakesCard');
+    if (!n) { box.innerHTML = ''; return; }
+    box.innerHTML =
+      '<button class="card-btn card-mistakes" type="button" id="startMistakes">' +
+      '<span class="card-top">' +
+      '<span class="card-title">Работа над ошибками</span>' +
+      '<span class="tag tag-mistakes">' + n + ' ' + plural(n, 'задание', 'задания', 'заданий') + '</span>' +
+      '</span>' +
+      '<span class="card-hint">Задания с неверным ответом возвращаются с теми же числами. Решённое верно уходит из списка.</span>' +
+      '</button>';
+  }
+
   // ======================= справочник =======================
 
   function renderRef() {
     var order = ['konst', 'power', 'sum', 'product', 'quotient', 'chain', 'trig', 'expo', 'log', 'root', 'apply'];
     $('refList').innerHTML = order.map(function (id) {
-      return '<div class="ref-item"><h3>' + RULES[id].name + '</h3>' +
-        '<div class="ref-formula">' + RULES[id].formula + '</div></div>';
+      var r = RULES[id];
+      // В подсказке во время решения показывается только основная формула,
+      // в справочнике — вместе с частными случаями.
+      var lines = [r.formula].concat(r.more || []).map(function (line) {
+        return '<div class="ref-line">' + line + '</div>';
+      }).join('');
+      return '<div class="ref-item"><h3>' + r.name + '</h3>' +
+        '<div class="ref-formula">' + lines + '</div></div>';
     }).join('');
   }
 
@@ -144,9 +187,42 @@
     nextTask();
   }
 
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function startMistakes() {
+    var list = PROGRESS.mistakes();
+    if (!list.length) { show('home'); return; }
+    // Варианты перемешиваем заново, чтобы не запоминалась позиция ответа
+    S.queue = shuffle(list).map(function (t) {
+      if (t.options) t.options = shuffle(t.options);
+      return t;
+    });
+    S.mode = 'mistakes';
+    S.filter = null;
+    S.label = 'Работа над ошибками';
+    S.total = S.queue.length;
+    S.sess = newSession();
+    S.streak = 0;
+    S.lastTpl = null;
+    show('task');
+    nextTask();
+  }
+
   function nextTask() {
-    S.task = TASKS.newTask(S.filter, S.lastTpl);
-    S.lastTpl = S.task.tplId;
+    if (S.mode === 'mistakes') {
+      if (!S.queue.length) { finish(); return; }
+      S.task = S.queue.shift();
+    } else {
+      S.task = TASKS.newTask(S.filter, S.lastTpl);
+      S.lastTpl = S.task.tplId;
+    }
     S.answered = false;
     S.picked = null;
     S.hinted = false;
@@ -159,10 +235,11 @@
     var t = S.task;
 
     $('taskMode').textContent = S.label;
-    if (S.mode === 'marathon') {
-      $('taskCounter').textContent = 'Задание ' + (S.sess.n + 1) + ' из ' + MARATHON_LEN;
+    if (S.mode === 'marathon' || S.mode === 'mistakes') {
+      var len = S.mode === 'marathon' ? MARATHON_LEN : S.total;
+      $('taskCounter').textContent = 'Задание ' + (S.sess.n + 1) + ' из ' + len;
       $('progressFill').parentElement.hidden = false;
-      $('progressFill').style.width = (100 * S.sess.n / MARATHON_LEN) + '%';
+      $('progressFill').style.width = (100 * S.sess.n / len) + '%';
     } else {
       $('taskCounter').textContent = S.sess.n
         ? 'Верно: ' + S.sess.ok + ' из ' + S.sess.n
@@ -171,8 +248,13 @@
     }
 
     $('taskPrompt').textContent = t.prompt;
-    $('taskFormula').innerHTML = '<i class="fvar">f</i>(<i>x</i>) = ' + t.fxHtml;
-    $('taskFormula').setAttribute('aria-label', 'Функция: f от x равно ' + t.fxPlain);
+    if (t.graph) {
+      $('taskFormula').innerHTML = t.graph;
+      $('taskFormula').removeAttribute('aria-label');
+    } else {
+      $('taskFormula').innerHTML = t.fxLabel + ' = ' + t.fxHtml;
+      $('taskFormula').setAttribute('aria-label', 'Функция: ' + t.fxPlain);
+    }
 
     $('hintArea').innerHTML = '';
     $('hintBtn').hidden = false;
@@ -267,6 +349,7 @@
   function onAction() {
     if (!S.answered) { check(); return; }
     if (S.mode === 'marathon' && S.sess.n >= MARATHON_LEN) { finish(); return; }
+    if (S.mode === 'mistakes' && !S.queue.length) { finish(); return; }
     nextTask();
   }
 
@@ -308,14 +391,18 @@
       if (ok) S.sess.rules[id].ok += 1;
     });
     PROGRESS.record(t, ok, S.streak, S.hinted);
+    if (ok) PROGRESS.clearMistake(t);
+    else PROGRESS.addMistake(t);
 
     if (t.kind === 'choice') lockOptions();
     renderFeedback(ok, mistake, given);
 
-    if (S.mode === 'marathon') {
-      $('progressFill').style.width = (100 * S.sess.n / MARATHON_LEN) + '%';
-      $('taskCounter').textContent = 'Задание ' + S.sess.n + ' из ' + MARATHON_LEN;
-      setAction(S.sess.n >= MARATHON_LEN ? 'Посмотреть итоги' : 'Следующее задание', false);
+    if (S.mode === 'marathon' || S.mode === 'mistakes') {
+      var len = S.mode === 'marathon' ? MARATHON_LEN : S.total;
+      var last = S.mode === 'marathon' ? S.sess.n >= MARATHON_LEN : !S.queue.length;
+      $('progressFill').style.width = (100 * S.sess.n / len) + '%';
+      $('taskCounter').textContent = 'Задание ' + S.sess.n + ' из ' + len;
+      setAction(last ? 'Посмотреть итоги' : 'Следующее задание', false);
     } else {
       $('taskCounter').textContent = 'Верно: ' + S.sess.ok + ' из ' + S.sess.n;
       setAction('Следующее задание', false);
@@ -397,6 +484,8 @@
     if (S.mode === 'marathon') {
       PROGRESS.addMarathon({ date: Date.now(), ok: ok, total: total, secs: secs });
       $('resultKicker').textContent = 'Марафон завершён';
+    } else if (S.mode === 'mistakes') {
+      $('resultKicker').textContent = 'Работа над ошибками завершена';
     } else {
       $('resultKicker').textContent = 'Тренировка завершена';
     }
@@ -474,6 +563,8 @@
   function init() {
     initTheme();
     $('statTypes').textContent = TASKS.count;
+    $('statTypesLabel').textContent =
+      plural(TASKS.count, 'тип заданий', 'типа заданий', 'типов заданий');
 
     $('themeBtn').addEventListener('click', function () {
       setTheme(document.documentElement.getAttribute('data-theme') !== 'dark');
@@ -520,7 +611,12 @@
 
     $('againBtn').addEventListener('click', function () {
       if (S.mode === 'marathon') startMarathon();
+      else if (S.mode === 'mistakes') startMistakes();
       else startPractice(S.filter, S.label);
+    });
+
+    $('mistakesCard').addEventListener('click', function (e) {
+      if (e.target.closest('#startMistakes')) startMistakes();
     });
 
     $('resetBtn').addEventListener('click', function () {

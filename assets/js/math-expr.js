@@ -23,7 +23,11 @@
   function div(a, b) { return { t: 'div', a: a, b: b }; }
   function pow(a, b) { return { t: 'pow', a: a, b: typeof b === 'number' ? num(b) : b }; }
   function neg(a) { return { t: 'neg', a: a }; }
-  function fn(f, a) { return { t: 'f', f: f, a: a }; }
+  function fn(f, a, base) {
+    var node = { t: 'f', f: f, a: a };
+    if (base !== undefined) node.base = base;   // для log по основанию
+    return node;
+  }
 
   function flatten(args) {
     var out = [];
@@ -40,6 +44,7 @@
   function cos(a) { return fn('cos', a); }
   function tg(a) { return fn('tg', a); }
   function ln(a) { return fn('ln', a); }
+  function logb(base, a) { return fn('log', a, base); }   // log по основанию
   function exp(a) { return fn('exp', a); }       // e^a
   function sqrt(a) { return fn('sqrt', a); }
   function lin(a, b) {                            // a·x + b, аккуратно по краям
@@ -97,6 +102,7 @@
             return Math.abs(s2) < 1e-9 ? NaN : Math.cos(a) / s2;
           }
           case 'ln': return a > 0 ? Math.log(a) : NaN;
+          case 'log': return a > 0 ? Math.log(a) / Math.log(e.base) : NaN;
           case 'exp': return Math.exp(a);
           case 'sqrt': return a >= 0 ? Math.sqrt(a) : NaN;
         }
@@ -213,6 +219,10 @@
         if (e.f === 'exp') {
           return '<i>e</i><sup>' + render(e.a, P_ADD) + '</sup>';
         }
+        if (e.f === 'log') {
+          return wrap('<span class="fname">log</span><sub>' + fmtNum(e.base) + '</sub>' + fnArg(e.a),
+            parentPrec >= P_POW);
+        }
         if (e.f === 'sqrt') {
           return '<span class="rad"><span class="rad-sign">√</span>' +
             '<span class="rad-body">' + render(e.a, P_ADD) + '</span></span>';
@@ -264,6 +274,7 @@
       case 'pow': return plain(e.a) + ' в степени ' + plain(e.b);
       case 'f':
         if (e.f === 'exp') return 'e в степени ' + plain(e.a);
+        if (e.f === 'log') return 'логарифм по основанию ' + fmtNum(e.base) + ' от ' + plain(e.a);
         if (e.f === 'sqrt') return 'корень из ' + plain(e.a);
         return e.f + ' от ' + plain(e.a);
     }
@@ -272,7 +283,7 @@
 
   global.M = {
     num: num, X: X, V: V, add: add, mul: mul, div: div, pow: pow, neg: neg, fn: fn,
-    sin: sin, cos: cos, tg: tg, ln: ln, exp: exp, sqrt: sqrt,
+    sin: sin, cos: cos, tg: tg, ln: ln, logb: logb, exp: exp, sqrt: sqrt,
     lin: lin, coef: coef, powx: powx,
     evalExpr: evalExpr, sameValue: sameValue,
     html: html, plain: plain, fmtNum: fmtNum,

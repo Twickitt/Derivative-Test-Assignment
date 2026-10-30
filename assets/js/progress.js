@@ -7,6 +7,8 @@
   'use strict';
 
   var KEY = 'derivTrainer.v1';
+  var MISTAKES_KEY = 'derivTrainer.mistakes.v1';
+  var MISTAKES_MAX = 40;
 
   function fresh() {
     return {
@@ -34,6 +36,9 @@
       base.byRule = p.byRule || {};
       base.bySection = p.bySection || {};
       base.marathons = Array.isArray(p.marathons) ? p.marathons : [];
+      // В одном задании подсказка засчитывается не больше одного раза,
+      // поэтому их не может быть больше, чем решённых заданий.
+      base.hints = Math.min(base.hints, base.total);
       return base;
     } catch (e) {
       return fresh();
@@ -106,8 +111,64 @@
   }
 
   function reset() {
-    try { global.localStorage.removeItem(KEY); } catch (e) { }
+    try {
+      global.localStorage.removeItem(KEY);
+      global.localStorage.removeItem(MISTAKES_KEY);
+    } catch (e) { }
     return fresh();
+  }
+
+  // ---------- работа над ошибками ----------
+  // Задание хранится целиком, вместе с числами, вариантами и разбором,
+  // поэтому в работе над ошибками ученик получает тот же самый пример.
+
+  function signature(task) {
+    return task.tplId + '|' + task.prompt + '|' + task.fxPlain;
+  }
+
+  function loadMistakes() {
+    try {
+      var raw = global.localStorage.getItem(MISTAKES_KEY);
+      if (!raw) return [];
+      var list = JSON.parse(raw);
+      return Array.isArray(list) ? list.filter(function (m) { return m && m.task; }) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveMistakes(list) {
+    try {
+      global.localStorage.setItem(MISTAKES_KEY, JSON.stringify(list));
+    } catch (e) {
+      // Если хранилище переполнено, оставляем только свежую половину
+      try {
+        global.localStorage.setItem(MISTAKES_KEY, JSON.stringify(list.slice(0, Math.floor(list.length / 2))));
+      } catch (e2) { }
+    }
+  }
+
+  function addMistake(task) {
+    var sig = signature(task);
+    var list = loadMistakes().filter(function (m) { return m.sig !== sig; });
+    list.unshift({ sig: sig, at: Date.now(), task: task });
+    saveMistakes(list.slice(0, MISTAKES_MAX));
+  }
+
+  /** Задание решено верно — убираем его из работы над ошибками. */
+  function clearMistake(task) {
+    var sig = signature(task);
+    var list = loadMistakes();
+    var left = list.filter(function (m) { return m.sig !== sig; });
+    if (left.length !== list.length) saveMistakes(left);
+  }
+
+  function mistakes() {
+    return loadMistakes().map(function (m) { return m.task; });
+  }
+
+  function mistakeCount() {
+    return loadMistakes().length;
   }
 
   global.PROGRESS = {
@@ -116,6 +177,10 @@
     addMarathon: addMarathon,
     weakRules: weakRules,
     strongRules: strongRules,
-    reset: reset
+    reset: reset,
+    addMistake: addMistake,
+    clearMistake: clearMistake,
+    mistakes: mistakes,
+    mistakeCount: mistakeCount
   };
 })(window);
